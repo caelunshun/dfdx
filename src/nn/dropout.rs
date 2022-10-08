@@ -2,7 +2,6 @@ use crate::gradients::{CanUpdateWithGradients, GradientProvider, UnusedTensors};
 use crate::prelude::*;
 use crate::unique_id::unique_id;
 use rand::{prelude::StdRng, Rng, SeedableRng};
-use std::{cell::RefCell, ops::DerefMut};
 
 /// A [Module<Tensor>] that calls [dropout()] in [Module::forward()] with probability `1.0 / N`.
 /// Note that [dropout()] does not do anything for tensors with [NoneTape].
@@ -20,7 +19,7 @@ use std::{cell::RefCell, ops::DerefMut};
 /// ```
 #[derive(Clone, Debug)]
 pub struct DropoutOneIn<const N: usize> {
-    rng: RefCell<StdRng>,
+    rng: StdRng,
 }
 
 impl<const N: usize> Default for DropoutOneIn<N> {
@@ -29,7 +28,7 @@ impl<const N: usize> Default for DropoutOneIn<N> {
     fn default() -> Self {
         let seed = unique_id().as_u64();
         Self {
-            rng: RefCell::new(StdRng::seed_from_u64(seed)),
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 }
@@ -50,10 +49,12 @@ impl<const N: usize> LoadFromNpz for DropoutOneIn<N> {}
 impl<const N: usize, T: Tensor<Dtype = f32>> Module<T> for DropoutOneIn<N> {
     type Output = T;
 
-    /// Calls [dropout()] with `p=1/N` using `self.rng`.
     fn forward(&self, input: T) -> Self::Output {
-        let mut rng = self.rng.borrow_mut();
-        dropout(input, 1.0 / N as f32, rng.deref_mut())
+        input
+    }
+
+    fn forward_mut(&mut self, input: T) -> Self::Output {
+        dropout(input, 1.0 / N as f32, &mut self.rng)
     }
 }
 
@@ -90,7 +91,7 @@ impl<const N: usize, T: Tensor<Dtype = f32>> Module<T> for DropoutOneIn<N> {
 #[derive(Clone, Debug)]
 pub struct Dropout {
     pub p: f32,
-    rng: RefCell<StdRng>,
+    rng: StdRng,
 }
 
 impl Dropout {
@@ -98,7 +99,7 @@ impl Dropout {
     pub fn new(p: f32, rng_seed: u64) -> Self {
         Self {
             p,
-            rng: RefCell::new(StdRng::seed_from_u64(rng_seed)),
+            rng: StdRng::seed_from_u64(rng_seed),
         }
     }
 
@@ -107,7 +108,7 @@ impl Dropout {
         let seed = unique_id().as_u64();
         Self {
             p,
-            rng: RefCell::new(StdRng::seed_from_u64(seed)),
+            rng:StdRng::seed_from_u64(seed),
         }
     }
 }
@@ -135,10 +136,12 @@ impl LoadFromNpz for Dropout {}
 impl<T: Tensor<Dtype = f32>> Module<T> for Dropout {
     type Output = T;
 
-    /// Calls [dropout()] using `self.rng`.
     fn forward(&self, input: T) -> Self::Output {
-        let mut rng = self.rng.borrow_mut();
-        dropout(input, self.p, rng.deref_mut())
+      input 
+    }
+
+    fn forward_mut(&mut self, input: T) -> Self::Output {
+        dropout(input, self.p, &mut self.rng)
     }
 }
 
